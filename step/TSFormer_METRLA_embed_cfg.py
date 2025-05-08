@@ -79,3 +79,6 @@ CFG.TEST.DATA.PIN_MEMORY = True
 
 # ================= output embeddings ================= #
 CFG.EMBEDDING_SAVE_PATH = "datasets/METR-LA/tsformer_embeddings.npy"
+
+# ================= CKPT_PATH ================= #
+CFG.TSFORMER_CKPT_PATH = "tsformer_ckpt/TSFormer_METR-LA.pt"

@@ -1,4 +1,6 @@
 import torch
+import os
+import numpy as np
 
 from easytorch.utils.dist import master_only
 from basicts.data.registry import SCALER_REGISTRY
@@ -8,6 +10,9 @@ from basicts.runners import BaseTimeSeriesForecastingRunner
 class TSFormerRunner(BaseTimeSeriesForecastingRunner):
     def __init__(self, cfg: dict):
         super().__init__(cfg)
+        checkpoint = torch.load(cfg.TSFORMER_CKPT_PATH, map_location="cpu")
+        self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+
         self.forward_features = cfg["MODEL"].get("FORWARD_FEATURES", None)
         self.target_features = cfg["MODEL"].get("TARGET_FEATURES", None)
 
@@ -40,51 +45,29 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
         data = data[:, :, :, self.target_features]
         return data
 
-    def forward(self, data: tuple, epoch:int = None, iter_num: int = None, train:bool = True, **kwargs) -> tuple:
-        """feed forward process for train, val, and test. Note that the outputs are NOT re-scaled.
-
-        Args:
-            data (tuple): data (future data, history data). [B, L, N, C] for each of them
-            epoch (int, optional): epoch number. Defaults to None.
-            iter_num (int, optional): iteration number. Defaults to None.
-            train (bool, optional): if in the training process. Defaults to True.
-
-        Returns:
-            tuple: (prediction, real_value)
-        """
-
-        # preprocess
-        future_data, history_data = data
-        history_data    = self.to_running_device(history_data)      # B, L, N, C
-        future_data     = self.to_running_device(future_data)       # B, L, N, C
-        batch_size, length, num_nodes, _ = future_data.shape
-
+    def forward(self, data: tuple, epoch:int = None, iter_num: int = None, train:bool = True, **kwargs):
+        _, history_data = data  # Ignore future_data
+        history_data = self.to_running_device(history_data)
         history_data = self.select_input_features(history_data)
 
-        # feed forward
-        reconstruction_masked_tokens, label_masked_tokens = self.model(history_data=history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
-        # assert list(prediction_data.shape)[:3] == [batch_size, length, num_nodes], \
-            # "error shape of the output, edit the forward function to reshape it to [B, L, N, C]"
-        # post process
-        # prediction = self.select_target_features(prediction_data)
-        # real_value = self.select_target_features(future_data)
-        return reconstruction_masked_tokens, label_masked_tokens
+        # Get embeddings from TSFormer
+        hidden_states_full = self.model(history_data=history_data)
+        return hidden_states_full
+
 
     @torch.no_grad()
-    @master_only
-    def test(self):
-        """Evaluate the model.
-
-        Args:
-            train_epoch (int, optional): current epoch if in training process.
-        """
+    def save_embeddings(self, save_path):
+        self.model.eval()
+        all_embeddings = []
 
         for _, data in enumerate(self.test_data_loader):
-            forward_return = self.forward(data=data, epoch=None, iter_num=None, train=False)
-            # re-scale data
-            prediction_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[0], **self.scaler["args"])
-            real_value_rescaled = SCALER_REGISTRY.get(self.scaler["func"])(forward_return[1], **self.scaler["args"])
-            # metrics
-            for metric_name, metric_func in self.metrics.items():
-                metric_item = metric_func(prediction_rescaled, real_value_rescaled, null_val=self.null_val)
-                self.update_epoch_meter("test_"+metric_name, metric_item.item())
+            embeddings = self.forward(data, train=False)
+            all_embeddings.append(embeddings.cpu())
+
+        # Concatenate all and save
+        all_embeddings = torch.cat(all_embeddings, dim=0)  # [B_total, N, L, D]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        np.save(save_path, all_embeddings.numpy())
+
+   
