@@ -5,6 +5,7 @@ def main():
 
     # Initialize runner
     runner = TSFormerRunner(CFG)
+    runner.build_model(CFG)
 
     # Save encoder embeddings
     runner.save_embeddings(CFG.EMBEDDING_SAVE_PATH)
