@@ -1,5 +1,3 @@
-import torch
-from basicts.utils import load_config
 from step.step_runner import TSFormerRunner
 from step.TSFormer_METRLA_embed_cfg import CFG  # Your adjusted config
 
