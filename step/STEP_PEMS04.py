@@ -27,7 +27,7 @@ CFG.DATASET_OUTPUT_LEN = 12
 CFG.DATASET_ARGS = {
     "seq_len": 288 * 7 * 2
     }
-CFG.GPU_NUM = 2
+CFG.GPU_NUM = 1
 
 # ================= environment ================= #
 CFG.ENV = EasyDict()

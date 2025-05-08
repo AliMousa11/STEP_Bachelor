@@ -46,6 +46,7 @@ CFG.MODEL.PARAM = {
     "decoder_depth":1,
     "mode":"pre-train"
 }
+
 CFG.MODEL.FORWARD_FEATURES = [0]
 CFG.MODEL.TARGET_FEATURES = [0]
 
