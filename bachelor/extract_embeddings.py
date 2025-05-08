@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from configs.TSFormer_METR_LA import CFG
 
 # 2) imports from your STEP fork
-from basicts.archs.tsformer import TSFormer
+from .step_arch.tsformer.tsformer import TSFormer
 from basicts.data import PretrainingDataset  # the one your config uses
 
 # 3) device
