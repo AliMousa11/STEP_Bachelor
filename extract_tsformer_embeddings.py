@@ -10,9 +10,9 @@ TSFORMER_CKPT = "tsformer_ckpt/TSFormer_METR-LA.pt"
 DATA_PKL        = "datasets/METR-LA/processed_data.pkl"
 INDEX_PKL       = "datasets/METR-LA/index.pkl"
 
-# 2) import your code
-from step.tsformer import TSFormer
-from step.forecasting_dataset import ForecastingDataset
+# 2) import your code from the correct paths
+from step.step_arch.tsformer.tsformer import TSFormer
+from step.step_data.forecasting_dataset import ForecastingDataset
 
 # 3) copy your tsformer_args from STEP_METR-LA.py
 tsformer_args = {
