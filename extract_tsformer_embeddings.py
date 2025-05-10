@@ -7,8 +7,9 @@ from torch.utils.data import DataLoader
 
 # 1) point these at your files:
 TSFORMER_CKPT = "tsformer_ckpt/TSFormer_METR-LA.pt"
-DATA_PKL        = "datasets/METR-LA/processed_data.pkl"
-INDEX_PKL       = "datasets/METR-LA/index.pkl"
+DATA_PKL  = "datasets/METR-LA/data_in2016_out12.pkl"
+INDEX_PKL = "datasets/METR-LA/index_in2016_out12.pkl"
+
 
 # 2) import your code from the correct paths
 from step.step_arch.tsformer.tsformer import TSFormer
