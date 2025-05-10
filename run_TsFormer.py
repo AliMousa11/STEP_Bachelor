@@ -5,7 +5,9 @@ def main():
 
     # Initialize runner
     runner = TSFormerRunner(CFG)
-    runner.build_model(CFG)
+    # Manually build components (since no `setup()` exists)
+    runner.model = runner.build_model(CFG)
+    runner.test_data_loader = runner.build_test_dataset(CFG)
 
     # Save encoder embeddings
     runner.save_embeddings(CFG.EMBEDDING_SAVE_PATH)

@@ -46,7 +46,7 @@ class TSFormerRunner(BaseTimeSeriesForecastingRunner):
         return data
 
     def forward(self, data: tuple, epoch:int = None, iter_num: int = None, train:bool = True, **kwargs):
-        _, history_data = data  # Ignore future_data
+        _, history_data, _ = data  # Ignore future_data
         history_data = self.to_running_device(history_data)
         history_data = self.select_input_features(history_data)
 
