@@ -16,7 +16,18 @@ class STEP(nn.Module):
 
         # iniitalize the tsformer and backend models
         self.tsformer = TSFormer(**tsformer_args)
-        self.backend = GraphWaveNet(**backend_args)
+        # self.backend = GraphWaveNet(**backend_args)
+        # ─── choose backend dynamically ───────────────────────────────────────
+        backend_cls = backend_args.pop("backend_cls", "GraphWaveNet")
+
+        if backend_cls == "GraphWaveNet":
+            self.backend = GraphWaveNet(**backend_args)
+        elif backend_cls == "STGCN_Step":
+            from .stgcn_step import STGCN_Step                 # NEW wrapper
+            self.backend = STGCN_Step(**backend_args)
+        else:
+            raise ValueError(f"Unknown backend_cls: {backend_cls}")
+
 
         # load pre-trained tsformer
         self.load_pre_trained_model()
