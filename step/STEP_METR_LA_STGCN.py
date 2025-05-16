@@ -58,7 +58,7 @@ CFG.MODEL.PARAM = {
     },    "backend_args": {
                     "backend_cls" : "STGCN_Step",
                     "num_nodes" : 207,
-                    "adj_path" : "datasets/METR-LA/adj_mx.npz",
+                    "adj_path" : "/content/drive/MyDrive/Bachelor/static_adj.npz",
                     "in_dim"    : 2,
                     "hid_dim"   : 64,
                     "out_dim"   : 12,
@@ -101,7 +101,7 @@ CFG.TRAIN.LR_SCHEDULER.PARAM= {
 CFG.TRAIN.CLIP_GRAD_PARAM = {
     "max_norm": 3.0
 }
-CFG.TRAIN.NUM_EPOCHS = 100
+CFG.TRAIN.NUM_EPOCHS = 25
 CFG.TRAIN.CKPT_SAVE_DIR = os.path.join(
     "checkpoints",
     "_".join([CFG.MODEL.NAME, str(CFG.TRAIN.NUM_EPOCHS)])
