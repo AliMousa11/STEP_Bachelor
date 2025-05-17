@@ -59,7 +59,7 @@ CFG.MODEL.PARAM = {
                     "backend_cls" : "STGCN_Step",
                     "num_nodes" : 207,
                     "adj_path" : "/content/drive/MyDrive/Bachelor/static_adj.npz",
-                    "in_dim"    : 2,
+                    "in_dim"    : 1,
                     "hid_dim"   : 64,
                     "out_dim"   : 12,
                     "Kt" : 3,        # Temporal kernel size
@@ -67,7 +67,8 @@ CFG.MODEL.PARAM = {
                     "act_func" : "glu",
                     "graph_conv_type" : "cheb_graph_conv",
                     "bias" : True,
-                    "droprate" : 0.5
+                    "droprate" : 0.5,
+                    "tsformer_dim" : 96  # Dimension of TSFormer embeddings (must match embed_dim in tsformer_args)
     },
     "dgl_args": {
                 "dataset_name": CFG.DATASET_NAME,
