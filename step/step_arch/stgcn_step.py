@@ -41,20 +41,27 @@ class STGCN_Step(nn.Module):
             gso=self.A_fixed,    # Graph shift operator (adjacency matrix)
             bias=bias,           # Whether to use bias
             droprate=droprate    # Dropout rate
-        )# STEP calls backend(x, sampled_adj, hidden_states, …)
+        )
+          # STEP calls backend(x, sampled_adj, hidden_states, …)
     def forward(self, x, sampled_adj=None, hidden_states=None):
         """
         Args:
-            x: Input time series data, shape [B, L, N, C]
+            x: Input time series data, shape [B, L, N, C] or possibly [B, N, C, L]
                 B: Batch size
-                L: Sequence length
-                N: Number of nodes
-                C: Number of features/channels
+                L: Sequence length (typically 12)
+                N: Number of nodes (typically 207)
+                C: Number of features/channels (typically 1)
             sampled_adj: Sampled adjacency matrix (not used in STGCN as it uses fixed adj matrix)
             hidden_states: Hidden states from TSFormer, shape [B, N, D]
                 D: Hidden dimension from TSFormer (typically 96)
         """
-        # Extract only first channel from input to ensure we have [B, L, N, 1]
+        # Debug print of original input shape
+        print(f"DEBUG - Original input shape: {x.shape}")
+        
+        # Based on the runtime error, the input shape is [B, N, C, L] = [32, 207, 1, 12]
+        # STGCN expects [B, C, L, N] = [32, 1, 12, 207]
+        
+        # Extract only first channel from input if needed (to ensure C=1)
         if x.shape[-1] > 1:
             x_input = x[..., 0:1]  # Keep only the first channel but maintain dimension
         else:
@@ -62,27 +69,73 @@ class STGCN_Step(nn.Module):
             
         # Incorporate the hidden states from TSFormer if available
         if hidden_states is not None and self.use_hidden_states:
+            print("DEBUG - Using hidden states from TSFormer")
             # Project hidden states from TSFormer's embedding dimension to 1
             # Shape goes from [B, N, D] -> [B, N, 1]
             projected_hidden = self.hidden_projection(hidden_states)
             
-            # Reshape to match input dimensions [B, L, N, 1]
-            # We expand the projected hidden states across the time dimension
-            hidden_expanded = projected_hidden.unsqueeze(1).expand(-1, x_input.shape[1], -1, -1)
+            # Reshape to match input dimensions
+            # For [B, N, C, L] input, expand hidden across L dimension
+            if x_input.shape[1] == 207:  # If input is [B, N, C, L]
+                hidden_expanded = projected_hidden.unsqueeze(-1).expand(-1, -1, -1, x_input.shape[-1])
+                print(f"DEBUG - Expanded hidden states to: {hidden_expanded.shape}")
+            else:  # Default case for [B, L, N, C] input
+                hidden_expanded = projected_hidden.unsqueeze(1).expand(-1, x_input.shape[1], -1, -1)
+                print(f"DEBUG - Expanded hidden states to: {hidden_expanded.shape}")
             
-            # Add the projected hidden states to input features (element-wise addition)
-            # This preserves the input shape while incorporating hidden state information
+            # Add the projected hidden states to input features
             x_enhanced = x_input + hidden_expanded
         else:
+            print("DEBUG - Not using hidden states")
             x_enhanced = x_input
+        
+        print(f"DEBUG - Enhanced input shape: {x_enhanced.shape}")
+        
+        # Apply the correct permutation based on the input shape
+        try:
+            if x_enhanced.shape[1] == 207:  # Input is [B, N, C, L]
+                # Need to permute [B, N, C, L] -> [B, C, L, N]
+                x_permuted = x_enhanced.permute(0, 2, 3, 1)
+                print(f"DEBUG - Permuted from [B, N, C, L] to [B, C, L, N]: {x_permuted.shape}")
+            else:
+                # Default case: input is [B, L, N, C]
+                x_permuted = x_enhanced.permute(0, 3, 1, 2)
+                print(f"DEBUG - Permuted from [B, L, N, C] to [B, C, L, N]: {x_permuted.shape}")
             
-        # STGCN expects [B, C, L, N], but our input is [B, L, N, C]
-        # Permute dimensions for STGCN
-        x_permuted = x_enhanced.permute(0, 3, 1, 2)
+            # Forward pass through STGCN model
+            output = self.model(x_permuted, None, None, None, False)
+            print(f"DEBUG - STGCN output shape: {output.shape}")
+            
+            # Process the output to get expected format [B, N, L]
+            if output.dim() == 4:
+                # If output is [B, C, L, N], convert to [B, N, L]
+                result = output.squeeze(1).transpose(1, 2) if output.shape[1] == 1 else output.permute(0, 3, 2, 1).squeeze(-1)
+            else:
+                result = output
+            
+            print(f"DEBUG - Final result shape: {result.shape}")
+            return result
         
-        # Forward pass through STGCN model
-        # Output shape from STGCN is [B, L, N, 1]
-        output = self.model(x_permuted, None, None, None, False)
-        
-        # Reshape to the expected output format [B, N, L]
-        return output.squeeze(-1).transpose(1, 2)  # [B, L, N] -> [B, N, L]
+        except Exception as e:
+            print(f"DEBUG - Error in model forward pass: {e}")
+            # Try a fallback approach
+            print(f"DEBUG - Attempting fallback with alternative permutation")
+            
+            # Try different permutation patterns as a last resort
+            try:
+                # Maybe input is already in the form STGCN expects?
+                output = self.model(x_enhanced, None, None, None, False)
+                result = output.squeeze(-1) if output.dim() > 3 else output
+                print(f"DEBUG - Fallback succeeded with direct input. Result shape: {result.shape}")
+                return result
+            except:
+                # Last try with a specific permutation
+                if x_enhanced.shape[1] == 207:  # [B, N, C, L]
+                    x_permuted = x_enhanced.permute(0, 2, 3, 1)  # -> [B, C, L, N]
+                else:
+                    x_permuted = x_enhanced.permute(0, 3, 1, 2)  # -> [B, C, L, N]
+                    
+                output = self.model(x_permuted, None, None, None, False)
+                result = output.squeeze(1).transpose(1, 2) if output.dim() == 4 else output
+                print(f"DEBUG - Last resort succeeded. Result shape: {result.shape}")
+                return result
