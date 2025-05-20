@@ -121,6 +121,8 @@ class STGCN_Step(nn.Module):
                 result = output
             
             print(f"DEBUG - Final result shape: {result.shape}")
+            print(f"DEBUG - Result stride: {result.stride()}")
+            result = result.contiguous()  # Add this line to ensure memory layout matches shape
             return result
         
         except Exception as e:
@@ -131,8 +133,20 @@ class STGCN_Step(nn.Module):
             # Try different permutation patterns as a last resort
             try:                # Maybe input is already in the form STGCN expects?
                 output = self.model(x_enhanced, None, None, None, False)                # Apply the same transformation as main path
-                if output.dim() == 4:
+                print(f"DEBUG - Direct fallback output shape: {output.shape}")
+                # First, check if output is already in [B, L, N, C] format
+                if output.shape[2] == 207 and len(output.shape) == 4:
+                    print(f"DEBUG - Output already in [B, L, N, C] format: {output.shape}")
+                    result = output  # No permutation needed
+                # Check if output has shape [B, N, C, L]
+                elif output.shape[1] == 207 and len(output.shape) == 4:
+                    # Transform from [B, N, C, L] to [B, L, N, C]
+                    print(f"DEBUG - Detected [B, N, C, L] format, transforming to [B, L, N, C]")
+                    result = output.permute(0, 3, 1, 2)  # [B, N, C, L] -> [B, L, N, C]
+                # Check if output has shape [B, C, L, N]
+                elif output.dim() == 4:
                     # Transform from [B, C, L, N] to [B, L, N, C]
+                    print(f"DEBUG - Detected [B, C, L, N] format, transforming to [B, L, N, C]")
                     result = output.permute(0, 2, 3, 1)
                 elif output.dim() == 3:
                     # Handle 3D output by adding channel dimension
@@ -140,6 +154,7 @@ class STGCN_Step(nn.Module):
                 else:
                     result = output
                 print(f"DEBUG - Fallback succeeded with direct input. Result shape: {result.shape}")
+                result = result.contiguous()  # Add this line
                 return result
             except:
                 # Last try with a specific permutation
@@ -157,4 +172,5 @@ class STGCN_Step(nn.Module):
                 else:
                     result = output
                 print(f"DEBUG - Last resort succeeded. Result shape: {result.shape}")
+                result = result.contiguous()  # Add this line 
                 return result
