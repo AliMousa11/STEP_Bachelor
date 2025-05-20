@@ -101,16 +101,23 @@ class STGCN_Step(nn.Module):
                 # Default case: input is [B, L, N, C]
                 x_permuted = x_enhanced.permute(0, 3, 1, 2)
                 print(f"DEBUG - Permuted from [B, L, N, C] to [B, C, L, N]: {x_permuted.shape}")
-            
-            # Forward pass through STGCN model
+              # Forward pass through STGCN model
             output = self.model(x_permuted, None, None, None, False)
             print(f"DEBUG - STGCN output shape: {output.shape}")
-            
-            # Process the output to get expected format [B, N, L]
+              # Process the output to get expected format [B, L, N, C]
             if output.dim() == 4:
-                # If output is [B, C, L, N], convert to [B, N, L]
-                result = output.squeeze(1).transpose(1, 2) if output.shape[1] == 1 else output.permute(0, 3, 2, 1).squeeze(-1)
+                # Transform from [B, C, L, N] to [B, L, N, C]
+                print(f"DEBUG - Transforming output from [B, C, L, N] to [B, L, N, C]")
+                result = output.permute(0, 2, 3, 1)
+                print(f"DEBUG - After permutation shape: {result.shape}")
+            elif output.dim() == 3:
+                # Handle 3D output [B, L, N] by adding channel dimension
+                print(f"DEBUG - Adding channel dimension to 3D output: {output.shape}")
+                result = output.unsqueeze(-1)  # Add channel dimension at the end
+                print(f"DEBUG - After adding channel dimension: {result.shape}")
             else:
+                # In case of unexpected output format, preserve as is
+                print(f"DEBUG - Unexpected output dimensions: {output.dim()}")
                 result = output
             
             print(f"DEBUG - Final result shape: {result.shape}")
@@ -122,10 +129,16 @@ class STGCN_Step(nn.Module):
             print(f"DEBUG - Attempting fallback with alternative permutation")
             
             # Try different permutation patterns as a last resort
-            try:
-                # Maybe input is already in the form STGCN expects?
-                output = self.model(x_enhanced, None, None, None, False)
-                result = output.squeeze(-1) if output.dim() > 3 else output
+            try:                # Maybe input is already in the form STGCN expects?
+                output = self.model(x_enhanced, None, None, None, False)                # Apply the same transformation as main path
+                if output.dim() == 4:
+                    # Transform from [B, C, L, N] to [B, L, N, C]
+                    result = output.permute(0, 2, 3, 1)
+                elif output.dim() == 3:
+                    # Handle 3D output by adding channel dimension
+                    result = output.unsqueeze(-1)  # Add channel dimension at the end
+                else:
+                    result = output
                 print(f"DEBUG - Fallback succeeded with direct input. Result shape: {result.shape}")
                 return result
             except:
@@ -134,8 +147,14 @@ class STGCN_Step(nn.Module):
                     x_permuted = x_enhanced.permute(0, 2, 3, 1)  # -> [B, C, L, N]
                 else:
                     x_permuted = x_enhanced.permute(0, 3, 1, 2)  # -> [B, C, L, N]
-                    
-                output = self.model(x_permuted, None, None, None, False)
-                result = output.squeeze(1).transpose(1, 2) if output.dim() == 4 else output
+                output = self.model(x_permuted, None, None, None, False)                # Use the same correct transformation as the main path
+                if output.dim() == 4:
+                    # Transform from [B, C, L, N] to [B, L, N, C]
+                    result = output.permute(0, 2, 3, 1)
+                elif output.dim() == 3:
+                    # Handle 3D output by adding channel dimension
+                    result = output.unsqueeze(-1)  # Add channel dimension at the end
+                else:
+                    result = output
                 print(f"DEBUG - Last resort succeeded. Result shape: {result.shape}")
                 return result
