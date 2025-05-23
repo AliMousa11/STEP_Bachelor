@@ -64,7 +64,32 @@ class STEPRunner(BaseTimeSeriesForecastingRunner):
 
         # feed forward
         prediction, pred_adj, prior_adj, gsl_coefficient = self.model(history_data=history_data, long_history_data=long_history_data, future_data=None, batch_seen=iter_num, epoch=epoch)
-
+            # Add this block to save the graph at specific epochs
+        if train and epoch is not None and epoch in [20]:
+            # The "pred_adj" is already the guided probability matrix returned from the model
+            # The binary "sampled_adj" is inside the model and used for computation
+            import os
+            import numpy as np
+            
+            save_dir = "/content/drive/MyDrive/Bachelor/extracted graphs"
+            os.makedirs(save_dir, exist_ok=True)
+            
+            # Save the probability matrix (guided by KNN)
+            guided_prob = pred_adj[0].cpu().numpy()
+            
+            # To get the binary sampled adjacency that's used by GraphWaveNet:
+            with torch.no_grad():
+                _, _, _, sampled_adj = self.model.discrete_graph_learning(
+                    long_history_data, self.model.tsformer)
+                guided_binary = sampled_adj[0].cpu().numpy()
+            
+            # Save both
+            np.savez_compressed(
+                os.path.join(save_dir, f"guided_graph_epoch{epoch}.npz"),
+                adj_prob=guided_prob,       # Probability matrix (guided by KNN)
+                adj_binary=guided_binary     # Binary adjacency used by GraphWaveNet
+            )
+            print(f"\n✓ Saved guided graph at epoch {epoch} (edges: {guided_binary.sum():.0f})\n")
         batch_size, length, num_nodes, _ = future_data.shape
         assert list(prediction.shape)[:3] == [batch_size, length, num_nodes], \
             "error shape of the output, edit the forward function to reshape it to [B, L, N, C]"
