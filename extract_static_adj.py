@@ -4,6 +4,7 @@
 import os, sys, pathlib, importlib
 import numpy as np
 import torch
+import torch.nn.functional as F  # Add missing import for F.softmax
 
 # ── EDITS DONE ────────────────────────────────────────────────────────
 CKPT_PATH = "tsformer_ckpt/TSFormer_METR-LA.pt"      # ① correct path
@@ -59,10 +60,11 @@ missing, unexpected = model.tsformer.load_state_dict(ts_state, strict=False)
 print(f"✓  Loaded {len(ts_state) - len(unexpected)}/{len(model.tsformer.state_dict())} "
       f"TSFormer parameters")
 if missing:
-    print("   ↳  {len(missing)} optional keys were missing (safe to ignore)")
+    print(f"   ↳  {len(missing)} optional keys were missing (safe to ignore)")  # Fix missing f-string
 model.eval()
 
-
+# Create save directory if it doesn't exist
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 # sample adjacency once
 with torch.no_grad():
@@ -79,12 +81,16 @@ with torch.no_grad():
     
     # For reference, also save embeddings (last patch only, to keep file size reasonable)
     embeddings = hidden_states[0, :, -1, :].cpu().numpy()  # (N, d)
+
 print(f"   ↳  adj_sampled: {A_sampled.shape}, edges: {A_sampled.sum()}")
 print(f"   ↳  adj_knn: {A_knn.shape}, edges: {A_knn.sum()}")
 print(f"   ↳  adj_prob: {A_prob.shape}")
 print(f"   ↳  embeddings: {embeddings.shape}")
-np.savez_compressed(SAVE_PATH, adj=A_sampled)
-np.savez_compressed(SAVE_PATH, adj=A_knn)
-np.savez_compressed(SAVE_PATH, adj=A_prob)
-np.savez_compressed(SAVE_PATH, adj=embeddings)
-print(f"✓  Saved all graph components to {SAVE_PATH}")
+
+# Save each component to a separate file with descriptive names
+np.savez_compressed(os.path.join(SAVE_DIR, "sampled_adj.npz"), adj=A_sampled)
+np.savez_compressed(os.path.join(SAVE_DIR, "knn_adj.npz"), adj=A_knn)
+np.savez_compressed(os.path.join(SAVE_DIR, "prob_adj.npz"), adj=A_prob)
+np.savez_compressed(os.path.join(SAVE_DIR, "embeddings.npz"), embeddings=embeddings)
+
+print(f"✓  Saved all graph components to {SAVE_DIR}")
