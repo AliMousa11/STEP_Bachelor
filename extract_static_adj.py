@@ -7,7 +7,7 @@ import torch
 
 # ── EDITS DONE ────────────────────────────────────────────────────────
 CKPT_PATH = "tsformer_ckpt/TSFormer_METR-LA.pt"      # ① correct path
-SAVE_PATH = "/content/drive/MyDrive/Bachelor/static_adj.npz"
+SAVE_DIR = "/content/drive/MyDrive/Bachelor/extracted graphs"
 # ──────────────────────────────────────────────────────────────────────
 
 ROOT = os.getcwd()          # repo root (./STEP)
@@ -66,10 +66,25 @@ model.eval()
 
 # sample adjacency once
 with torch.no_grad():
-    _, _, _, sampled_adj = model.discrete_graph_learning(
+    bernoulli_unnorm, hidden_states, adj_knn, sampled_adj = model.discrete_graph_learning(
         long_hist.to(device), model.tsformer)
-
-A = sampled_adj[0].cpu().numpy()        # (N, N)
-
-np.savez_compressed(SAVE_PATH, adj=A)
-print(f"✅  Saved {SAVE_PATH} | shape {A.shape}")
+    
+    # Get probability distribution from bernoulli parameters
+    A_pred_prob = F.softmax(bernoulli_unnorm, dim=-1)[..., 0].reshape(1, 207, 207)
+    
+    # Extract all components
+    A_sampled = sampled_adj[0].cpu().numpy()        # (N, N)
+    A_knn = adj_knn[0].cpu().numpy()                # (N, N)
+    A_prob = A_pred_prob[0].cpu().numpy()           # (N, N)
+    
+    # For reference, also save embeddings (last patch only, to keep file size reasonable)
+    embeddings = hidden_states[0, :, -1, :].cpu().numpy()  # (N, d)
+print(f"   ↳  adj_sampled: {A_sampled.shape}, edges: {A_sampled.sum()}")
+print(f"   ↳  adj_knn: {A_knn.shape}, edges: {A_knn.sum()}")
+print(f"   ↳  adj_prob: {A_prob.shape}")
+print(f"   ↳  embeddings: {embeddings.shape}")
+np.savez_compressed(SAVE_PATH, adj=A_sampled)
+np.savez_compressed(SAVE_PATH, adj=A_knn)
+np.savez_compressed(SAVE_PATH, adj=A_prob)
+np.savez_compressed(SAVE_PATH, adj=embeddings)
+print(f"✓  Saved all graph components to {SAVE_PATH}")
