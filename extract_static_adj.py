@@ -116,9 +116,9 @@ first_embeddings = all_hidden_states[0]
 embeddings = all_hidden_states[-1]  # Last batch embeddings
 
 print("\n=== Graph Summary ===")
-print(f"   ↳  avg_sampled_adj: {avg_sampled_adj.shape}, avg edges: {avg_sampled_adj.sum()/len(all_sampled_adjs):.1f}")
+# print(f"   ↳  avg_sampled_adj: {avg_sampled_adj.shape}, avg edges: {avg_sampled_adj.sum()/len(all_sampled_adjs):.1f}")
 print(f"   ↳  binary_sampled_adj: {binary_sampled_adj.shape}, edges: {binary_sampled_adj.sum()}")
-print(f"   ↳  avg_knn_adj: {avg_knn_adj.shape}, avg edges: {avg_knn_adj.sum()/len(all_knn_adjs):.1f}")
+# print(f"   ↳  avg_knn_adj: {avg_knn_adj.shape}, avg edges: {avg_knn_adj.sum()/len(all_knn_adjs):.1f}")
 print(f"   ↳  binary_knn_adj: {binary_knn_adj.shape}, edges: {binary_knn_adj.sum()}")
 print(f"   ↳  avg_prob_adj: {avg_prob_adj.shape}")
 
