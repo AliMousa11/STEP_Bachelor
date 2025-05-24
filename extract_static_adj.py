@@ -101,8 +101,15 @@ avg_sampled_adj = np.mean(all_sampled_adjs, axis=0)
 avg_knn_adj = np.mean(all_knn_adjs, axis=0)
 avg_prob_adj = np.mean(all_prob_adjs, axis=0)
 
-# Convert probabilistic averaged sampled_adj to binary using threshold
+# Convert probabilistic averaged matrices to binary using threshold
 binary_sampled_adj = (avg_sampled_adj > 0.5).astype(np.float32)
+binary_knn_adj = (avg_knn_adj > 0.3).astype(np.float32)
+
+# Get first batch components for comparison
+first_sampled_adj = all_sampled_adjs[0]
+first_knn_adj = all_knn_adjs[0]
+first_prob_adj = all_prob_adjs[0]
+first_embeddings = all_hidden_states[0]
 
 # For embeddings, we can keep the last batch's embeddings for simplicity
 # Or optionally average them as well
@@ -112,17 +119,35 @@ print("\n=== Graph Summary ===")
 print(f"   ↳  avg_sampled_adj: {avg_sampled_adj.shape}, avg edges: {avg_sampled_adj.sum()/len(all_sampled_adjs):.1f}")
 print(f"   ↳  binary_sampled_adj: {binary_sampled_adj.shape}, edges: {binary_sampled_adj.sum()}")
 print(f"   ↳  avg_knn_adj: {avg_knn_adj.shape}, avg edges: {avg_knn_adj.sum()/len(all_knn_adjs):.1f}")
+print(f"   ↳  binary_knn_adj: {binary_knn_adj.shape}, edges: {binary_knn_adj.sum()}")
 print(f"   ↳  avg_prob_adj: {avg_prob_adj.shape}")
 
-# Save each component to a separate file with descriptive names
-np.savez_compressed(os.path.join(SAVE_DIR, "avg_sampled_adj.npz"), 
-                   adj_prob=avg_sampled_adj,
-                   adj_binary=binary_sampled_adj)
+print("\n=== First Batch Graph ===")
+print(f"   ↳  first_sampled_adj: {first_sampled_adj.shape}, edges: {first_sampled_adj.sum()}")
+print(f"   ↳  first_knn_adj: {first_knn_adj.shape}, edges: {first_knn_adj.sum()}")
+print(f"   ↳  first_prob_adj: {first_prob_adj.shape}")
+
+# Create first batch directory
+FIRST_BATCH_DIR = os.path.join(SAVE_DIR, "first_batch")
+os.makedirs(FIRST_BATCH_DIR, exist_ok=True)
+
+# Save averaged components to main directory
+# np.savez_compressed(os.path.join(SAVE_DIR, "avg_sampled_adj.npz"), 
+                #    adj_prob=avg_sampled_adj,
+                #    adj_binary=binary_sampled_adj)
 np.savez_compressed(os.path.join(SAVE_DIR, "sampled_adj.npz"), adj=binary_sampled_adj)
-np.savez_compressed(os.path.join(SAVE_DIR, "knn_adj.npz"), adj=avg_knn_adj)
+# np.savez_compressed(os.path.join(SAVE_DIR, "average_knn_adj.npz"), adj=avg_knn_adj)
+np.savez_compressed(os.path.join(SAVE_DIR, "knn_adj.npz"), adj=binary_knn_adj)
 np.savez_compressed(os.path.join(SAVE_DIR, "prob_adj.npz"), adj=avg_prob_adj)
-np.savez_compressed(os.path.join(SAVE_DIR, "embeddings.npz"), embeddings=embeddings)
+# np.savez_compressed(os.path.join(SAVE_DIR, "embeddings.npz"), embeddings=embeddings)
 
+# Save first batch components to separate directory
+np.savez_compressed(os.path.join(FIRST_BATCH_DIR, "sampled_adj.npz"), adj=first_sampled_adj)
+np.savez_compressed(os.path.join(FIRST_BATCH_DIR, "knn_adj.npz"), adj=first_knn_adj)
+np.savez_compressed(os.path.join(FIRST_BATCH_DIR, "prob_adj.npz"), adj=first_prob_adj)
+# np.savez_compressed(os.path.join(FIRST_BATCH_DIR, "embeddings.npz"), embeddings=first_embeddings)
 
-print(f"\n✓  Saved all graph components to {SAVE_DIR}")
+print(f"\n✓  Saved averaged graph components to {SAVE_DIR}")
 print(f"   ↳  Averaged across {BATCH_COUNT} validation batches")
+print(f"✓  Saved first batch graph components to {FIRST_BATCH_DIR}")
+print(f"   ↳  Use these to compare against the averaged graphs")
